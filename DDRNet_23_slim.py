@@ -118,7 +118,7 @@ class DAPPM:
             Conv2D(filters=branch_planes, kernel_size=1, use_bias=False),
         ]
         self.scale4 = [
-            GlobalAveragePooling2D(keepdims=True),
+            AveragePooling2D(pool_size=(16, 16), strides=1),
             BatchNormalization(),
             ReLU(),
             Conv2D(filters=branch_planes, kernel_size=1, use_bias=False),     
