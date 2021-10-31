@@ -237,6 +237,7 @@ class DualResNet:
     def __init__(self, block, layers=[2, 2, 2, 2], num_classes=1, planes=64, spp_planes=128, head_planes=64, input_shape=(1024, 1024, 1), augment=False, padding="same"):
         self.highres_planes = planes * 2
         self.augment = augment
+        self.input_shape = input_shape
 
         self.conv1 = [
             Conv2D(filters=planes, kernel_size=3, strides=2, padding=padding, input_shape=input_shape),
@@ -305,9 +306,12 @@ class DualResNet:
 
         self.final_layer = segmenthead(planes*4, head_planes, num_classes)
 
-    def build_model(self, x):
+    def build_model(self):
         layers = []
+        input_x = Input(shape=self.input_shape)
+        
         # x.shape == (None, 256, 256, 32)
+        x = input_x
         for layer in self.conv1:
             x = layer(x)
 
@@ -395,7 +399,9 @@ class DualResNet:
         out = self.final_layer.build_segmenthead(x + x_)
         out = Activation("sigmoid")(out)
 
-        return out
+        model = tf.keras.models.Model(inputs=input_x, outputs=out)
+        
+        return model
 
     def _make_layer(self, block, inplanes, planes, blocks, stride=1):
         downsample = None
@@ -422,7 +428,6 @@ class DualResNet:
         return layers
 
 
-
 def _get_stub_dataset():
     x = np.random.randn(3*1024*1024*1)
     x = x.reshape((3, 1024, 1024, 1))
@@ -432,9 +437,7 @@ def _get_stub_dataset():
 def train():
     input_shape = (1024, 1024, 1)
     model = DualResNet(BasicBlock, [2, 2, 2, 2], num_classes=1, planes=32, spp_planes=128, head_planes=64, input_shape=input_shape)
-    input_x = Input(shape=input_shape)
-    out = model.build_model(input_x)
-    model = tf.keras.models.Model(inputs=input_x, outputs=out)
+    model = model.build_model()
     model.compile(
         loss="binary_crossentropy",
         optimizer="adam",
@@ -452,8 +455,10 @@ def train():
         verbose=1,
     )
 
-    save_path = "trained_model"
-    tf.saved_model.save(model, save_path)
+    # saved model format
+    model.save("saved_model")
+    # h5 format
+    model.save("model.h5")
 
 
 if __name__ == "__main__":
